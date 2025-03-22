@@ -1,5 +1,4 @@
-// File: components/Calendar.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Task } from '@/types/task';
 
 interface CalendarProps {
@@ -17,10 +16,41 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
   
+  // New state for the context menu
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    taskId: number;
+    visible: boolean;
+  }>({
+    x: 0,
+    y: 0,
+    taskId: -1,
+    visible: false
+  });
+
+  // New state for the date picker in context menu
+  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+  
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+  
+  // Hide context menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   const goToPrevMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
@@ -109,11 +139,17 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
     return weeks;
   };
 
-  // Handle date selection
+  // Handle date selection - FIXED: Now cancels editing if a date is clicked
   const handleDateClick = (date: Date) => {
-    // If we're already editing a task, don't change the selected date
-    if (editingTask) return;
+    // If we're already editing a task, cancel the editing and allow selecting a new date
+    if (editingTask) {
+      setEditingTask(null);
+      setEditTaskTitle('');
+    }
+    
     setSelectedDate(date);
+    // Hide context menu if it's open
+    setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
   // Handle task addition
@@ -176,8 +212,55 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
   // Handle task click for editing
   const handleTaskClick = (e: React.MouseEvent, task: Task) => {
     e.stopPropagation();
+    
+    // Clear any selected date to prevent new task form from showing
+    setSelectedDate(null);
+    
+    // Set up task editing
     setEditingTask(task);
     setEditTaskTitle(task.title);
+    
+    // Hide context menu if it's open
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  // New function to handle right-click on a task
+  const handleTaskRightClick = (e: React.MouseEvent, taskId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Get the task
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.dueDate) {
+      setRescheduleDate(new Date(task.dueDate));
+    } else {
+      setRescheduleDate(new Date());
+    }
+    
+    // Show context menu at click position
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      taskId: taskId,
+      visible: true
+    });
+  };
+
+  // New function to reschedule a task
+  const handleRescheduleTask = () => {
+    if (updateTask && contextMenu.taskId !== -1 && rescheduleDate) {
+      updateTask(contextMenu.taskId, { dueDate: rescheduleDate });
+      // Hide context menu
+      setContextMenu(prev => ({ ...prev, visible: false }));
+    }
+  };
+
+  // Format date for the date input
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   // Update task title
@@ -379,6 +462,7 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
                             task.completed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                           } ${draggingTaskId === task.id ? 'opacity-50' : ''}`}
                           onClick={(e) => handleTaskClick(e, task)}
+                          onContextMenu={(e) => handleTaskRightClick(e, task.id)}
                           draggable
                           onDragStart={(e) => handleTaskDragStart(e, task.id)}
                         >
@@ -402,6 +486,42 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
             ))}
           </div>
         </div>
+        
+        {/* Context menu for rescheduling tasks */}
+        {contextMenu.visible && (
+          <div 
+            ref={contextMenuRef}
+            className="fixed bg-white shadow-lg rounded border p-3 z-50"
+            style={{ 
+              left: `${contextMenu.x}px`, 
+              top: `${contextMenu.y}px` 
+            }}
+          >
+            <h3 className="text-sm font-medium mb-2">Reschedule Task</h3>
+            <div className="flex flex-col space-y-2">
+              <input 
+                type="date" 
+                className="border rounded p-1 text-sm"
+                value={rescheduleDate ? formatDateForInput(rescheduleDate) : ''}
+                onChange={(e) => setRescheduleDate(e.target.value ? new Date(e.target.value) : null)}
+              />
+              <div className="flex justify-between">
+                <button 
+                  onClick={handleRescheduleTask}
+                  className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs"
+                >
+                  Reschedule
+                </button>
+                <button 
+                  onClick={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+                  className="text-gray-500 px-2 py-1 rounded hover:bg-gray-100 text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Task input form (shows when a date is selected) */}
         {selectedDate && !editingTask && (
