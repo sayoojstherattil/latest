@@ -1,15 +1,21 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Task } from '@/types/task';
+import { Task, Category } from '@/types/task'; 
 
 interface CalendarProps {
   tasks: Task[];
+  categories: Category[]; 
   addTask?: (title: string, date?: Date) => void;
   updateTask?: (id: string, updates: Partial<Task>) => void;
 }
 
-const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) => {
+const Calendar: React.FC<CalendarProps> = ({ 
+  tasks = [], 
+  categories = [], // Add this with default empty array
+  addTask, 
+  updateTask 
+}) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [viewType, setViewType] = useState('month'); // 'month', 'week', or 'day'
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -166,20 +172,13 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
   // Get tasks for a specific date
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
-      // If task has a dueDate property, check against it
-      if (task.dueDate) {
-        const taskDate = new Date(task.dueDate);
-        return taskDate.getDate() === date.getDate() && 
-               taskDate.getMonth() === date.getMonth() && 
-               taskDate.getFullYear() === date.getFullYear();
-      }
-      
-      // For compatibility with existing tasks without dates
-      // For demo, show some tasks on specific days
-      const day = date.getDate();
-      return (day === 15 && task.id === '1') || 
-             (day === 20 && task.id === '2') || 
-             (day === 10 && task.id === '3');
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate);
+      return (
+        taskDate.getDate() === date.getDate() &&
+        taskDate.getMonth() === date.getMonth() &&
+        taskDate.getFullYear() === date.getFullYear()
+      );
     });
   };
   
@@ -212,16 +211,16 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
 
   // Handle dropping a task onto a day
   const handleDrop = (e: React.DragEvent, date: Date) => {
-  e.preventDefault();
-  e.stopPropagation();
-  const taskId = e.dataTransfer.getData('text/plain'); // Removed Number conversion
-  
-  if (updateTask && taskId) {
-    updateTask(taskId, { dueDate: date });
-  }
-  
-  setDraggingTaskId(null);
-};
+    e.preventDefault();
+    e.stopPropagation();
+    const taskId = e.dataTransfer.getData('text/plain');
+    
+    if (updateTask && taskId) {
+      updateTask(taskId, { dueDate: date });
+    }
+    
+    setDraggingTaskId(null);
+  };
 
   // Allow drop
   const handleDragOver = (e: React.DragEvent) => {
@@ -487,38 +486,62 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
         
         {/* Context menu for rescheduling tasks */}
         {contextMenu.visible && (
-          <div 
-            ref={contextMenuRef}
-            className="fixed bg-white shadow-lg rounded border p-3 z-50"
-            style={{ 
-              left: `${contextMenu.x}px`, 
-              top: `${contextMenu.y}px` 
-            }}
-          >
-            <h3 className="text-sm font-medium mb-2">Reschedule Task</h3>
-            <div className="flex flex-col space-y-2">
-              <input 
-                type="date" 
-                className="border rounded p-1 text-sm"
-                value={rescheduleDate ? formatDateForInput(rescheduleDate) : ''}
-                onChange={(e) => setRescheduleDate(e.target.value ? new Date(e.target.value) : null)}
-              />
-              <div className="flex justify-between">
-                <button 
-                  onClick={handleRescheduleTask}
-                  className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs"
-                >
-                  Reschedule
-                </button>
-                <button 
-                  onClick={() => setContextMenu(prev => ({ ...prev, visible: false }))}
-                  className="text-gray-500 px-2 py-1 rounded hover:bg-gray-100 text-xs"
-                >
-                  Cancel
-                </button>
+            <div 
+              ref={contextMenuRef}
+              className="fixed bg-white shadow-lg rounded border p-3 z-50"
+              style={{ 
+                left: `${contextMenu.x}px`, 
+                top: `${contextMenu.y}px`,
+                minWidth: '200px'
+              }}
+            >
+              <h3 className="text-sm font-medium mb-2">Task Options</h3>
+              <div className="flex flex-col space-y-3">
+                <div>
+                  <label className="block text-xs mb-1">Due Date</label>
+                  <input 
+                    type="date" 
+                    className="border rounded p-1 text-sm w-full"
+                    value={rescheduleDate ? formatDateForInput(rescheduleDate) : ''}
+                    onChange={(e) => setRescheduleDate(e.target.value ? new Date(e.target.value) : null)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Category</label>
+                  <select
+                    value={tasks.find(t => t.id === contextMenu.taskId)?.categoryId || ''}
+                    onChange={(e) => {
+                      const categoryId = e.target.value || undefined;
+                      if (updateTask) {
+                        updateTask(contextMenu.taskId, { categoryId });
+                      }
+                    }}
+                    className="border rounded p-1 text-sm w-full"
+                  >
+                    <option value="">Uncategorized</option>
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex justify-between pt-2">
+                  <button 
+                    onClick={handleRescheduleTask}
+                    className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 text-xs"
+                  >
+                    Apply
+                  </button>
+                  <button 
+                    onClick={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+                    className="text-gray-500 px-2 py-1 rounded hover:bg-gray-100 text-xs"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
         )}
         
         {/* Task input form (shows when a date is selected) */}
@@ -553,40 +576,68 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
         
         {/* Task edit form (shows when a task is selected for editing) */}
         {editingTask && (
-          <div className="border-t p-4 bg-gray-50">
-            <h3 className="text-sm font-medium mb-2">
-              Edit task
-            </h3>
-            <div className="flex">
-              <input
-                type="text"
-                value={editTaskTitle}
-                onChange={(e) => setEditTaskTitle(e.target.value)}
-                placeholder="Enter task title"
-                className="flex-1 border rounded-l p-2 text-sm"
-              />
-              <button 
-                onClick={handleTaskUpdate}
-                className="bg-blue-500 text-white px-4 py-2 rounded-r hover:bg-blue-600 text-sm"
-              >
-                Update
-              </button>
-            </div>
-            <div className="mt-2 flex space-x-4">
-              <button 
-                onClick={handleCancelEdit}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Cancel
-              </button>
-              {editingTask.dueDate && (
-                <div className="text-sm text-gray-500">
-                  Due: {new Date(editingTask.dueDate).toLocaleDateString()}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+  <div className="border-t p-4 bg-gray-50">
+    <h3 className="text-sm font-medium mb-2">Edit task</h3>
+    <div className="flex mb-2">
+      <input
+        type="text"
+        value={editTaskTitle}
+        onChange={(e) => setEditTaskTitle(e.target.value)}
+        placeholder="Enter task title"
+        className="flex-1 border rounded p-2 text-sm"
+      />
+    </div>
+    <div className="flex items-center mb-2">
+      <label className="text-sm mr-2">Category:</label>
+      <select
+        value={editingTask.categoryId || ''}
+        onChange={(e) => {
+          const categoryId = e.target.value || undefined;
+          if (updateTask) {
+            updateTask(editingTask.id, { categoryId });
+          }
+        }}
+        className="border rounded p-1 text-sm"
+      >
+        <option value="">Uncategorized</option>
+        {categories.map(category => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
+    </div>
+    {editingTask.dueDate && (
+      <div className="flex items-center mb-2">
+        <label className="text-sm mr-2">Due Date:</label>
+        <input
+          type="date"
+          value={formatDateForInput(new Date(editingTask.dueDate))}
+          onChange={(e) => {
+            if (updateTask && e.target.value) {
+              updateTask(editingTask.id, { dueDate: new Date(e.target.value) });
+            }
+          }}
+          className="border rounded p-1 text-sm"
+        />
+      </div>
+    )}
+    <div className="flex justify-between">
+      <button
+        onClick={handleTaskUpdate}
+        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+      >
+        Save
+      </button>
+      <button
+        onClick={handleCancelEdit}
+        className="text-sm text-gray-500 hover:text-gray-700"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

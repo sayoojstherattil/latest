@@ -210,9 +210,10 @@ const App: React.FC = () => {
           ) : (
             <Calendar 
               tasks={tasks} 
+              categories={categories}
               addTask={addTaskWithDueDate}
               updateTask={updateTask}
-            />
+          />
           )}
         </main>
         
