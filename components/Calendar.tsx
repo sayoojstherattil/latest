@@ -1,10 +1,12 @@
+"use client"
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Task } from '@/types/task';
 
 interface CalendarProps {
   tasks: Task[];
   addTask?: (title: string, date?: Date) => void;
-  updateTask?: (id: number, updates: Partial<Task>) => void;
+  updateTask?: (id: string, updates: Partial<Task>) => void;
 }
 
 const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) => {
@@ -14,18 +16,18 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
-  const [draggingTaskId, setDraggingTaskId] = useState<number | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   
   // New state for the context menu
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
-    taskId: number;
+    taskId: string;
     visible: boolean;
   }>({
     x: 0,
     y: 0,
-    taskId: -1,
+    taskId: '', // Changed from -1 to ''
     visible: false
   });
 
@@ -175,33 +177,51 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
       // For compatibility with existing tasks without dates
       // For demo, show some tasks on specific days
       const day = date.getDate();
-      return (day === 15 && task.id === 1) || 
-             (day === 20 && task.id === 2) || 
-             (day === 10 && task.id === 3);
+      return (day === 15 && task.id === '1') || 
+             (day === 20 && task.id === '2') || 
+             (day === 10 && task.id === '3');
     });
   };
-
-  // Start task drag operation
-  const handleTaskDragStart = (e: React.DragEvent, taskId: number) => {
+  
+  const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
     e.stopPropagation();
-    setDraggingTaskId(taskId);
-    // Set the drag data
-    e.dataTransfer.setData('text/plain', taskId.toString());
+    setDraggingTaskId(taskId); // No need to convert, since draggingTaskId now accepts a string
+    e.dataTransfer.setData('text/plain', taskId);
     e.dataTransfer.effectAllowed = 'move';
+  };
+  
+    // New function to handle right-click on a task
+  const handleTaskRightClick = (e: React.MouseEvent, taskId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.dueDate) {
+      setRescheduleDate(new Date(task.dueDate));
+    } else {
+      setRescheduleDate(new Date());
+    }
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      taskId: taskId,
+      visible: true
+    });
   };
 
   // Handle dropping a task onto a day
   const handleDrop = (e: React.DragEvent, date: Date) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const taskId = Number(e.dataTransfer.getData('text/plain'));
-    
-    if (updateTask && taskId) {
-      updateTask(taskId, { dueDate: date });
-    }
-    
-    setDraggingTaskId(null);
-  };
+  e.preventDefault();
+  e.stopPropagation();
+  const taskId = e.dataTransfer.getData('text/plain'); // Removed Number conversion
+  
+  if (updateTask && taskId) {
+    updateTask(taskId, { dueDate: date });
+  }
+  
+  setDraggingTaskId(null);
+};
 
   // Allow drop
   const handleDragOver = (e: React.DragEvent) => {
@@ -224,31 +244,9 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
-  // New function to handle right-click on a task
-  const handleTaskRightClick = (e: React.MouseEvent, taskId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Get the task
-    const task = tasks.find(t => t.id === taskId);
-    if (task && task.dueDate) {
-      setRescheduleDate(new Date(task.dueDate));
-    } else {
-      setRescheduleDate(new Date());
-    }
-    
-    // Show context menu at click position
-    setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      taskId: taskId,
-      visible: true
-    });
-  };
-
   // New function to reschedule a task
   const handleRescheduleTask = () => {
-    if (updateTask && contextMenu.taskId !== -1 && rescheduleDate) {
+    if (updateTask && contextMenu.taskId !== '' && rescheduleDate) { // Changed from -1 to ''
       updateTask(contextMenu.taskId, { dueDate: rescheduleDate });
       // Hide context menu
       setContextMenu(prev => ({ ...prev, visible: false }));
@@ -279,7 +277,7 @@ const Calendar: React.FC<CalendarProps> = ({ tasks = [], addTask, updateTask }) 
   };
 
   // Toggle task completion status
-  const handleToggleComplete = (e: React.MouseEvent, taskId: number) => {
+  const handleToggleComplete = (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation();
     if (updateTask) {
       const task = tasks.find(t => t.id === taskId);

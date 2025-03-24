@@ -1,50 +1,46 @@
-// File: components/TaskList.tsx
-import { BsCheck2 } from 'react-icons/bs';
+// components/TaskList.tsx
+"use client"
+
+import React from 'react';
 import TaskItem from './TaskItem';
-import { Task } from '@/types/task';
+import { Task, Category } from '@/types/task';
 
 interface TaskListProps {
   tasks: Task[];
-  toggleComplete: (id: number) => void;
-  toggleStar: (id: number) => void;
+  categories: Category[];
+  onToggleComplete: (id: string) => void;
+  onUpdateCategory: (taskId: string, categoryId: string | undefined) => void;
+  onDeleteTask: (id: string) => void;
+  onUpdateTask: (taskId: string, updates: Partial<Task>) => void;
+  onToggleStar?: (id: string) => void;
 }
 
-export default function TaskList({ tasks, toggleComplete, toggleStar }: TaskListProps) {
-  const uncompletedTasks = tasks.filter(task => !task.completed);
-  const completedTasks = tasks.filter(task => task.completed);
-
+export default function TaskList({ 
+  tasks, 
+  categories, 
+  onToggleComplete, 
+  onUpdateCategory, 
+  onDeleteTask,
+  onUpdateTask,
+  onToggleStar 
+}: TaskListProps) {
   return (
-    <div className="flex-1 overflow-y-auto space-y-4">
-      {/* Uncompleted Tasks */}
-      <div className="space-y-2">
-        {uncompletedTasks.map(task => (
-          <TaskItem
-            key={task.id}
-            task={task}
-            toggleComplete={toggleComplete}
-            toggleStar={toggleStar}
-          />
-        ))}
-      </div>
-      
-      {/* Completed Tasks */}
-      {completedTasks.length > 0 && (
-        <div className="mt-6">
-          <div className="flex items-center text-green-500 mb-2">
-            <BsCheck2 />
-            <span className="ml-2">Completed</span>
-          </div>
-          <div className="space-y-2 opacity-70">
-            {completedTasks.map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                toggleComplete={toggleComplete}
-                toggleStar={toggleStar}
-              />
-            ))}
-          </div>
+    <div>
+      {tasks.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">
+          No tasks to display. Add a new task below!
         </div>
+      ) : (
+        tasks.map(task => (
+          <TaskItem 
+            key={task.id} 
+            task={task} 
+            categories={categories}
+            toggleComplete={onToggleComplete}
+            toggleStar={onToggleStar}
+            updateTask={onUpdateTask}
+          />
+        ))
       )}
     </div>
   );
