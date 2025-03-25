@@ -1,15 +1,19 @@
-// page.tsx
 "use client"
 
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TaskList from '@/components/TaskList';
 import AddTaskInput from '@/components/AddTaskInput';
 import Calendar from '@/components/Calendar';
+import LoginForm from '@/components/LoginForm';
+import LogoutButton from '@/components/LogoutButton';
 import { Task, Category } from '@/types/task';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<Category[]>([
     { id: 'work', name: 'Work', color: '#4299e1' },
@@ -21,24 +25,40 @@ const App: React.FC = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('#4299e1');
   const [viewMode, setViewMode] = useState<'tasks' | 'calendar'>('tasks');
+  const router = useRouter();
 
-  // Load tasks and categories from localStorage on initial load
+  // Check auth state and load data
   useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+    setIsAuthenticated(!!authToken);
+    
+    if (authToken) {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Handle route protection
+  useEffect(() => {
+    if (isAuthenticated === false && !isLoading) {
+      router.replace('/');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  const loadData = () => {
     const savedTasks = localStorage.getItem('tasks');
     const savedCategories = localStorage.getItem('categories');
     
     if (savedTasks) {
       try {
         const parsedTasks = JSON.parse(savedTasks);
-        
-        // Convert string date to Date objects
         const processedTasks = parsedTasks.map((task: any) => ({
           ...task,
           reminderDate: task.reminderDate ? new Date(task.reminderDate) : undefined,
           dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
           createdAt: new Date(task.createdAt)
         }));
-        
         setTasks(processedTasks);
       } catch (error) {
         console.error('Error parsing saved tasks:', error);
@@ -52,17 +72,24 @@ const App: React.FC = () => {
         console.error('Error parsing saved categories:', error);
       }
     }
-  }, []);
+    
+    setIsLoading(false);
+  };
 
-  // Save tasks and categories to localStorage whenever they change
+  // Save data only when authenticated
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (isAuthenticated) {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, isAuthenticated]);
   
   useEffect(() => {
-    localStorage.setItem('categories', JSON.stringify(categories));
-  }, [categories]);
+    if (isAuthenticated) {
+      localStorage.setItem('categories', JSON.stringify(categories));
+    }
+  }, [categories, isAuthenticated]);
 
+  // Task management functions (unchanged)
   const addTask = (title: string, reminderDate?: Date, categoryId?: string) => {
     const newTask: Task = {
       id: uuidv4(),
@@ -72,7 +99,6 @@ const App: React.FC = () => {
       reminderDate,
       createdAt: new Date()
     };
-    
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
 
@@ -84,16 +110,13 @@ const App: React.FC = () => {
       dueDate,
       createdAt: new Date()
     };
-    
     setTasks(prevTasks => [...prevTasks, newTask]);
   };
 
   const updateTask = (taskId: string, updates: Partial<Task>) => {
     setTasks(prevTasks => 
       prevTasks.map(task => 
-        task.id === taskId 
-          ? { ...task, ...updates } 
-          : task
+        task.id === taskId ? { ...task, ...updates } : task
       )
     );
   };
@@ -101,9 +124,7 @@ const App: React.FC = () => {
   const toggleTaskCompletion = (taskId: string) => {
     setTasks(prevTasks => 
       prevTasks.map(task => 
-        task.id === taskId 
-          ? { ...task, completed: !task.completed } 
-          : task
+        task.id === taskId ? { ...task, completed: !task.completed } : task
       )
     );
   };
@@ -111,9 +132,7 @@ const App: React.FC = () => {
   const updateTaskCategory = (taskId: string, categoryId: string | undefined) => {
     setTasks(prevTasks => 
       prevTasks.map(task => 
-        task.id === taskId 
-          ? { ...task, categoryId } 
-          : task
+        task.id === taskId ? { ...task, categoryId } : task
       )
     );
   };
@@ -138,16 +157,13 @@ const App: React.FC = () => {
   };
 
   const deleteCategory = (categoryId: string) => {
-    // Remove category and update all tasks with that category to have no category
     setCategories(prevCategories => 
       prevCategories.filter(category => category.id !== categoryId)
     );
     
     setTasks(prevTasks => 
       prevTasks.map(task => 
-        task.categoryId === categoryId 
-          ? { ...task, categoryId: undefined } 
-          : task
+        task.categoryId === categoryId ? { ...task, categoryId: undefined } : task
       )
     );
   };
@@ -158,6 +174,18 @@ const App: React.FC = () => {
     : selectedCategoryId === 'uncategorized'
       ? tasks.filter(task => !task.categoryId)
       : tasks.filter(task => task.categoryId === selectedCategoryId);
+
+  if (isAuthenticated === null || isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -178,7 +206,7 @@ const App: React.FC = () => {
                 ? 'Uncategorized'
                 : categories.find(c => c.id === selectedCategoryId)?.name || 'Tasks'}
           </h1>
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 items-center">
             <button 
               onClick={() => setViewMode('tasks')}
               className={`px-3 py-1 rounded ${viewMode === 'tasks' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
@@ -191,20 +219,20 @@ const App: React.FC = () => {
             >
               Calendar View
             </button>
+            <LogoutButton />
           </div>
         </header>
         
         <main className="flex-1 overflow-y-auto">
           {viewMode === 'tasks' ? (
             <div className="p-4">
-               {/* In page.tsx */}
               <TaskList 
                 tasks={filteredTasks}
                 categories={categories}
                 onToggleComplete={toggleTaskCompletion}
                 onUpdateCategory={updateTaskCategory}
                 onDeleteTask={deleteTask}
-                onUpdateTask={updateTask} // Add this line
+                onUpdateTask={updateTask}
               />
             </div>
           ) : (
@@ -213,7 +241,7 @@ const App: React.FC = () => {
               categories={categories}
               addTask={addTaskWithDueDate}
               updateTask={updateTask}
-          />
+            />
           )}
         </main>
         
@@ -227,12 +255,10 @@ const App: React.FC = () => {
         )}
       </div>
       
-      {/* Category Modal */}
       {showCreateCategoryModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h2 className="text-xl font-semibold mb-4">Create New Category</h2>
-            
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category Name
@@ -245,7 +271,6 @@ const App: React.FC = () => {
                 placeholder="e.g. Work, Personal, Shopping"
               />
             </div>
-            
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Category Color
@@ -262,7 +287,6 @@ const App: React.FC = () => {
                 </span>
               </div>
             </div>
-            
             <div className="flex justify-end space-x-2">
               <button
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
