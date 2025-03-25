@@ -12,19 +12,17 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ 
   tasks = [], 
-  categories = [], // Add this with default empty array
+  categories = [],
   addTask, 
   updateTask 
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [viewType, setViewType] = useState('month'); // 'month', 'week', or 'day'
+  const [viewType, setViewType] = useState('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
-  
-  // New state for the context menu
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -33,11 +31,9 @@ const Calendar: React.FC<CalendarProps> = ({
   }>({
     x: 0,
     y: 0,
-    taskId: '', // Changed from -1 to ''
+    taskId: '',
     visible: false
   });
-
-  // New state for the date picker in context menu
   const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   
@@ -46,7 +42,6 @@ const Calendar: React.FC<CalendarProps> = ({
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
   
-  // Hide context menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
@@ -72,17 +67,14 @@ const Calendar: React.FC<CalendarProps> = ({
     setCurrentMonth(new Date());
   };
   
-  // Helper function to get days in month
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
   };
 
-  // Helper function to get first day of month (0 = Sunday, 1 = Monday, etc.)
   const getFirstDayOfMonth = (year: number, month: number) => {
     return new Date(year, month, 1).getDay();
   };
 
-  // Generate calendar days
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -90,10 +82,8 @@ const Calendar: React.FC<CalendarProps> = ({
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
     
-    // Adjust for Monday as first day of week
     const firstDayIndex = firstDay === 0 ? 6 : firstDay - 1;
     
-    // Get days from previous month
     const prevMonthDays = [];
     const prevMonth = month === 0 ? 11 : month - 1;
     const prevMonthYear = month === 0 ? year - 1 : year;
@@ -107,7 +97,6 @@ const Calendar: React.FC<CalendarProps> = ({
       });
     }
     
-    // Current month days
     const currentMonthDays = [];
     for (let i = 1; i <= daysInMonth; i++) {
       currentMonthDays.push({
@@ -117,7 +106,6 @@ const Calendar: React.FC<CalendarProps> = ({
       });
     }
     
-    // Next month days
     const nextMonthDays = [];
     const nextMonth = month === 11 ? 0 : month + 1;
     const nextMonthYear = month === 11 ? year + 1 : year;
@@ -135,7 +123,6 @@ const Calendar: React.FC<CalendarProps> = ({
     return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
   };
 
-  // Generate weeks from days
   const generateCalendarWeeks = () => {
     const days = generateCalendarDays();
     const weeks = [];
@@ -147,20 +134,16 @@ const Calendar: React.FC<CalendarProps> = ({
     return weeks;
   };
 
-  // Handle date selection - FIXED: Now cancels editing if a date is clicked
   const handleDateClick = (date: Date) => {
-    // If we're already editing a task, cancel the editing and allow selecting a new date
     if (editingTask) {
       setEditingTask(null);
       setEditTaskTitle('');
     }
     
     setSelectedDate(date);
-    // Hide context menu if it's open
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
-  // Handle task addition
   const handleAddTask = () => {
     if (newTaskTitle.trim() !== '' && selectedDate && addTask) {
       addTask(newTaskTitle, selectedDate);
@@ -169,7 +152,6 @@ const Calendar: React.FC<CalendarProps> = ({
     }
   };
 
-  // Get tasks for a specific date
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
       if (!task.dueDate) return false;
@@ -184,12 +166,11 @@ const Calendar: React.FC<CalendarProps> = ({
   
   const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
     e.stopPropagation();
-    setDraggingTaskId(taskId); // No need to convert, since draggingTaskId now accepts a string
+    setDraggingTaskId(taskId);
     e.dataTransfer.setData('text/plain', taskId);
     e.dataTransfer.effectAllowed = 'move';
   };
   
-    // New function to handle right-click on a task
   const handleTaskRightClick = (e: React.MouseEvent, taskId: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -209,7 +190,6 @@ const Calendar: React.FC<CalendarProps> = ({
     });
   };
 
-  // Handle dropping a task onto a day
   const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault();
     e.stopPropagation();
@@ -222,37 +202,26 @@ const Calendar: React.FC<CalendarProps> = ({
     setDraggingTaskId(null);
   };
 
-  // Allow drop
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  // Handle task click for editing
   const handleTaskClick = (e: React.MouseEvent, task: Task) => {
     e.stopPropagation();
-    
-    // Clear any selected date to prevent new task form from showing
     setSelectedDate(null);
-    
-    // Set up task editing
     setEditingTask(task);
     setEditTaskTitle(task.title);
-    
-    // Hide context menu if it's open
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
-  // New function to reschedule a task
   const handleRescheduleTask = () => {
-    if (updateTask && contextMenu.taskId !== '' && rescheduleDate) { // Changed from -1 to ''
+    if (updateTask && contextMenu.taskId !== '' && rescheduleDate) {
       updateTask(contextMenu.taskId, { dueDate: rescheduleDate });
-      // Hide context menu
       setContextMenu(prev => ({ ...prev, visible: false }));
     }
   };
 
-  // Format date for the date input
   const formatDateForInput = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -260,7 +229,6 @@ const Calendar: React.FC<CalendarProps> = ({
     return `${year}-${month}-${day}`;
   };
 
-  // Update task title
   const handleTaskUpdate = () => {
     if (editingTask && updateTask && editTaskTitle.trim() !== '') {
       updateTask(editingTask.id, { title: editTaskTitle });
@@ -269,13 +237,11 @@ const Calendar: React.FC<CalendarProps> = ({
     }
   };
 
-  // Cancel task editing
   const handleCancelEdit = () => {
     setEditingTask(null);
     setEditTaskTitle('');
   };
 
-  // Toggle task completion status
   const handleToggleComplete = (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation();
     if (updateTask) {
@@ -576,68 +542,68 @@ const Calendar: React.FC<CalendarProps> = ({
         
         {/* Task edit form (shows when a task is selected for editing) */}
         {editingTask && (
-  <div className="border-t p-4 bg-gray-50">
-    <h3 className="text-sm font-medium mb-2">Edit task</h3>
-    <div className="flex mb-2">
-      <input
-        type="text"
-        value={editTaskTitle}
-        onChange={(e) => setEditTaskTitle(e.target.value)}
-        placeholder="Enter task title"
-        className="flex-1 border rounded p-2 text-sm"
-      />
-    </div>
-    <div className="flex items-center mb-2">
-      <label className="text-sm mr-2">Category:</label>
-      <select
-        value={editingTask.categoryId || ''}
-        onChange={(e) => {
-          const categoryId = e.target.value || undefined;
-          if (updateTask) {
-            updateTask(editingTask.id, { categoryId });
-          }
-        }}
-        className="border rounded p-1 text-sm"
-      >
-        <option value="">Uncategorized</option>
-        {categories.map(category => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </select>
-    </div>
-    {editingTask.dueDate && (
-      <div className="flex items-center mb-2">
-        <label className="text-sm mr-2">Due Date:</label>
-        <input
-          type="date"
-          value={formatDateForInput(new Date(editingTask.dueDate))}
-          onChange={(e) => {
-            if (updateTask && e.target.value) {
-              updateTask(editingTask.id, { dueDate: new Date(e.target.value) });
-            }
-          }}
-          className="border rounded p-1 text-sm"
-        />
-      </div>
-    )}
-    <div className="flex justify-between">
-      <button
-        onClick={handleTaskUpdate}
-        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
-      >
-        Save
-      </button>
-      <button
-        onClick={handleCancelEdit}
-        className="text-sm text-gray-500 hover:text-gray-700"
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
+          <div className="border-t p-4 bg-gray-50">
+            <h3 className="text-sm font-medium mb-2">Edit task</h3>
+            <div className="flex mb-2">
+              <input
+                type="text"
+                value={editTaskTitle}
+                onChange={(e) => setEditTaskTitle(e.target.value)}
+                placeholder="Enter task title"
+                className="flex-1 border rounded p-2 text-sm"
+              />
+            </div>
+            <div className="flex items-center mb-2">
+              <label className="text-sm mr-2">Category:</label>
+              <select
+                value={editingTask.categoryId || ''}
+                onChange={(e) => {
+                  const categoryId = e.target.value || undefined;
+                  if (updateTask) {
+                    updateTask(editingTask.id, { categoryId });
+                  }
+                }}
+                className="border rounded p-1 text-sm"
+              >
+                <option value="">Uncategorized</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {editingTask.dueDate && (
+              <div className="flex items-center mb-2">
+                <label className="text-sm mr-2">Due Date:</label>
+                <input
+                  type="date"
+                  value={formatDateForInput(new Date(editingTask.dueDate))}
+                  onChange={(e) => {
+                    if (updateTask && e.target.value) {
+                      updateTask(editingTask.id, { dueDate: new Date(e.target.value) });
+                    }
+                  }}
+                  className="border rounded p-1 text-sm"
+                />
+              </div>
+            )}
+            <div className="flex justify-between">
+              <button
+                onClick={handleTaskUpdate}
+                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
