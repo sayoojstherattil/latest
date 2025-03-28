@@ -319,8 +319,8 @@ export default function AddTaskInput({ addTask, categories = [] }: AddTaskInputP
                       alert('Create category feature coming soon');
                     }}
                   >
-                    <FiFolder className="mr-2" />
-                    Create new category
+                    {/* <FiFolder className="mr-2" />
+                    Create new category */}
                   </div>
                   
                   {selectedCategory && (
