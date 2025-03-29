@@ -154,13 +154,20 @@ const Calendar: React.FC<CalendarProps> = ({
 
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate);
-      return (
-        taskDate.getDate() === date.getDate() &&
-        taskDate.getMonth() === date.getMonth() &&
-        taskDate.getFullYear() === date.getFullYear()
-      );
+      const taskDueDate = task.dueDate ? new Date(task.dueDate) : null;
+      const taskReminderDate = task.reminderDate ? new Date(task.reminderDate) : null;
+      
+      const isDueDateMatch = taskDueDate && 
+        taskDueDate.getDate() === date.getDate() &&
+        taskDueDate.getMonth() === date.getMonth() &&
+        taskDueDate.getFullYear() === date.getFullYear();
+        
+      const isReminderDateMatch = taskReminderDate && 
+        taskReminderDate.getDate() === date.getDate() &&
+        taskReminderDate.getMonth() === date.getMonth() &&
+        taskReminderDate.getFullYear() === date.getFullYear();
+      
+      return isDueDateMatch || isReminderDateMatch;
     });
   };
   
@@ -418,30 +425,34 @@ const Calendar: React.FC<CalendarProps> = ({
                     
                     {/* Display tasks for this day */}
                     <div className="mt-1">
-                      {getTasksForDate(day.date).map(task => (
-                        <div 
-                          key={task.id}
-                          className={`text-xs p-1 mb-1 rounded cursor-move flex items-center justify-between ${
-                            task.completed ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                          } ${draggingTaskId === task.id ? 'opacity-50' : ''}`}
-                          onClick={(e) => handleTaskClick(e, task)}
-                          onContextMenu={(e) => handleTaskRightClick(e, task.id)}
-                          draggable
-                          onDragStart={(e) => handleTaskDragStart(e, task.id)}
-                        >
-                          <div className="flex items-center">
-                            <input 
-                              type="checkbox"
-                              className="mr-1"
-                              checked={task.completed || false}
-                              onChange={(e) => {}}
-                              onClick={(e) => handleToggleComplete(e, task.id)}
-                            />
-                            <span className={task.completed ? 'line-through' : ''}>{task.title}</span>
-                          </div>
-                          <div className="cursor-grab" title="Drag to reschedule">⋮</div>
+                    {getTasksForDate(day.date).map(task => (
+                      <div 
+                        key={task.id}
+                        className={`text-xs p-1 mb-1 rounded cursor-move flex items-center justify-between ${
+                          task.completed ? 'bg-green-100 text-green-800' : 
+                          task.reminderDate ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                        } ${draggingTaskId === task.id ? 'opacity-50' : ''}`}
+                        onClick={(e) => handleTaskClick(e, task)}
+                        onContextMenu={(e) => handleTaskRightClick(e, task.id)}
+                        draggable
+                        onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                      >
+                        <div className="flex items-center">
+                          <input 
+                            type="checkbox"
+                            className="mr-1"
+                            checked={task.completed || false}
+                            onChange={(e) => {}}
+                            onClick={(e) => handleToggleComplete(e, task.id)}
+                          />
+                          <span className={task.completed ? 'line-through' : ''}>
+                            {task.title}
+                            {task.reminderDate && !task.dueDate && ' (Reminder)'}
+                          </span>
                         </div>
-                      ))}
+                        <div className="cursor-grab" title="Drag to reschedule">⋮</div>
+                      </div>
+                    ))}
                     </div>
                   </div>
                 ))}
