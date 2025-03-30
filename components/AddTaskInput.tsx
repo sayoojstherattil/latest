@@ -164,11 +164,11 @@ export default function AddTaskInput({ addTask, categories = [] }: AddTaskInputP
           onKeyPress={handleKeyPress}
         />
         <div className="flex items-center space-x-2">
-          <FiUser 
+          {/*<FiUser 
             className="text-gray-500 cursor-pointer hover:text-blue-500" 
             onClick={() => alert('Assign user feature coming soon')}
             title="Assign to user"
-          />
+          />*/}
           <div className="relative" ref={dropdownRef}>
             <FiClock 
               className={`cursor-pointer ${reminderDate ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-500`} 
