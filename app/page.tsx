@@ -30,9 +30,10 @@ const App: React.FC = () => {
   // Check auth state and load data
   useEffect(() => {
     const authToken = localStorage.getItem('authToken');
-    setIsAuthenticated(!!authToken);
+    const currentUser = localStorage.getItem('currentUser');
+    setIsAuthenticated(!!(authToken && currentUser));
     
-    if (authToken) {
+    if (authToken && currentUser) {
       loadData();
     } else {
       setIsLoading(false);

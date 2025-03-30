@@ -1,22 +1,26 @@
 "use client"
 
+import React from 'react';
 import { useRouter } from 'next/navigation';
 
-const LogoutButton = () => {
+const LogoutButton: React.FC = () => {
   const router = useRouter();
 
   const handleLogout = () => {
-    // Clear all auth-related data
+    // Remove authentication data
     localStorage.removeItem('authToken');
-    // Force full page reload to reset all state
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('tasks');
+    localStorage.removeItem('categories');
+    
+    // Force a page reload to clear any in-memory state
     window.location.href = '/';
   };
 
   return (
     <button
       onClick={handleLogout}
-      className="px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-      aria-label="Logout"
+      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
     >
       Logout
     </button>
